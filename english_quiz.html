@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>英単語クイズアプリ</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f4;
+    }
+    .app {
+      max-width: 800px;
+      margin: 20px auto;
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 20px 24px 32px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 1.6rem;
+      text-align: center;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+    select {
+      padding: 6px 8px;
+      font-size: 1rem;
+    }
+    #score {
+      font-weight: bold;
+    }
+    #question {
+      margin: 18px 0 10px;
+      font-size: 1.2rem;
+      text-align: center;
+    }
+    #subInfo {
+      text-align: center;
+      color: #666;
+      font-size: 0.9rem;
+      min-height: 1.2em;
+    }
+    #options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin: 18px 0;
+    }
+    .option-btn {
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      background: #fafafa;
+      cursor: pointer;
+      transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.15s ease;
+    }
+    .option-btn:hover:not(:disabled) {
+      background: #f0f0f0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      transform: translateY(-1px);
+    }
+    .option-btn:disabled {
+      opacity: 0.7;
+      cursor: default;
+    }
+    #feedback {
+      text-align: center;
+      font-size: 1rem;
+      min-height: 1.4em;
+    }
+    #feedback.correct {
+      color: #1a7f1a;
+    }
+    #feedback.wrong {
+      color: #c0392b;
+    }
+    #nextBtn {
+      display: block;
+      margin: 0 auto;
+      padding: 8px 18px;
+      font-size: 1rem;
+      border-radius: 20px;
+      border: none;
+      cursor: pointer;
+      background: #3498db;
+      color: #fff;
+      transition: background 0.15s ease, transform 0.05s ease, box-shadow 0.05s ease;
+    }
+    #nextBtn:hover {
+      background: #2980b9;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      transform: translateY(-1px);
+    }
+    #nextBtn:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>英単語クイズ</h1>
+
+    <div class="controls">
+      <label>
+        モード：
+        <select id="modeSelect">
+          <option value="1">① 現在形 → 進行形を選ぶ</option>
+          <option value="2">② 英語 → 日本語を選ぶ</option>
+          <option value="3">③ 日本語 → 英語を選ぶ</option>
+        </select>
+      </label>
+      <span id="score">正解数 0 / 0</span>
+    </div>
+
+    <div id="question"></div>
+    <div id="subInfo"></div>
+
+    <div id="options"></div>
+
+    <div id="feedback"></div>
+
+    <button id="nextBtn">次の問題</button>
+  </div>
+
+  <script>
+    // ① 動詞（現在形・進行形・日本語）
+    const verbs = [
+      { base: "like",     ing: "liking",     jp: "好む" },
+      { base: "want",     ing: "wanting",    jp: "必要とする" },
+      { base: "play",     ing: "playing",    jp: "～する" },
+      { base: "have",     ing: "having",     jp: "持つ" },
+      { base: "spell",    ing: "spelling",   jp: "綴る" },
+      { base: "listen",   ing: "listening",  jp: "聴く" },
+      { base: "walk",     ing: "walking",    jp: "歩く" },
+      { base: "run",      ing: "running",    jp: "走る" },
+      { base: "dance",    ing: "dancing",    jp: "ダンスする" },
+      { base: "jump",     ing: "jumping",    jp: "ジャンプする" },
+      { base: "catch",    ing: "catching",   jp: "捕まえる" },
+      { base: "swim",     ing: "swimming",   jp: "泳ぐ" },
+      { base: "sing",     ing: "singing",    jp: "歌う" },
+      { base: "fly",      ing: "flying",     jp: "飛ぶ" },
+      { base: "cook",     ing: "cooking",    jp: "料理する" },
+      { base: "turn",     ing: "turning",    jp: "ターンする" },
+      { base: "go",       ing: "going",      jp: "行く" },
+      { base: "see",      ing: "seeing",     jp: "見る" },
+      { base: "look",     ing: "looking",    jp: "見る" },
+      { base: "drink",    ing: "drinking",   jp: "飲む" },
+      { base: "eat",      ing: "eating",     jp: "食べる" },
+
+      { base: "buy",      ing: "buying",     jp: "買う" },
+      { base: "speak",    ing: "speaking",   jp: "話す" },
+      { base: "live",     ing: "living",     jp: "住む" },
+      { base: "make",     ing: "making",     jp: "作る" },
+      { base: "wear",     ing: "wearing",    jp: "着る" },
+      { base: "talk",     ing: "talking",    jp: "話す" },
+      { base: "watch",    ing: "watching",   jp: "観る" },
+      { base: "read",     ing: "reading",    jp: "読む" },
+      { base: "help",     ing: "helping",    jp: "助ける" },
+      { base: "practice", ing: "practicing", jp: "練習する" },
+      { base: "clean",    ing: "cleaning",   jp: "きれいにする" },
+      { base: "enjoy",    ing: "enjoying",   jp: "楽しむ" },
+      { base: "ride",     ing: "riding",     jp: "乗る" },
+      { base: "visit",    ing: "visiting",   jp: "訪れる" },
+      { base: "come",     ing: "coming",     jp: "来る" },
+      { base: "get",      ing: "getting",    jp: "手に入れる" },
+      { base: "save",     ing: "saving",     jp: "助ける" },
+      { base: "stop",     ing: "stopping",   jp: "止まる" },
+      { base: "study",    ing: "studying",   jp: "勉強する" },
+      { base: "join",     ing: "joining",    jp: "参加する" },
+      { base: "work",     ing: "working",    jp: "働く" }
+    ];
+
+    // ② ③ 語彙（英語・日本語）
+    const vocab = [
+      // No.20 Unit 6 Part1
+      { en: "performer",        jp: "演技者" },
+      { en: "the U.K.",         jp: "イギリス" },
+      { en: "Let’s …",          jp: "…しよう。" },
+      { en: "say hi to …",      jp: "〜によろしく言う" },
+      { en: "know",             jp: "…を知る" },
+      { en: "him",              jp: "彼を、彼に" },
+      { en: "How’s everything?",jp: "調子はどうですか。" },
+      { en: "everything",       jp: "全てのこと" },
+      { en: "What’s that?",     jp: "あれは何ですか。" },
+      { en: "poster",           jp: "ポスター" },
+      { en: "show",             jp: "ショー" },
+      { en: "her",              jp: "彼女の、彼女に" },
+      { en: "who",              jp: "だれ" },
+      { en: "want to …",        jp: "…したい" },
+      { en: "see",              jp: "会う" },
+      { en: "Why don’t we …?",  jp: "…しませんか。" },
+      { en: "go together",      jp: "いっしょに行く" },
+      { en: "start(s)",         jp: "始まる" },
+      { en: "minute(s)",        jp: "分" },
+      { en: "wait",             jp: "待つ" },
+      { en: "whose",            jp: "だれの" },
+      { en: "ticket",           jp: "券、チケット" },
+      { en: "yours",            jp: "あなたのもの" },
+      { en: "mine",             jp: "私のもの" },
+      { en: "maybe",            jp: "たぶん" },
+
+      // No.21 Unit 6 Part2
+      { en: "Be careful.",      jp: "気をつけて。" },
+      { en: "crowded",          jp: "混んでいる" },
+      { en: "long",             jp: "長い" },
+      { en: "history",          jp: "歴史" },
+      { en: "still",            jp: "今でも" },
+      { en: "popular",          jp: "人気のある" },
+      { en: "over",             jp: "…以上" },
+      { en: "… years old",      jp: "歳" },
+      { en: "have a long history", jp: "歴史にかかわっている" },
+      { en: "different",        jp: "いろいろな" },
+      { en: "only",             jp: "だけ" },
+      { en: "prop(s)",          jp: "小道具" },
+      { en: "fan",              jp: "扇子・うちわ" },
+      { en: "hand towel",       jp: "てぬぐい" },
+      { en: "Which …?",         jp: "どちらが…" },
+      { en: "usually",          jp: "だいたい" },
+      { en: "sometimes",        jp: "ときどき" },
+      { en: "speak",            jp: "話す" },
+      { en: "wear",             jp: "身につける、着る" },
+      { en: "casual",           jp: "カジュアルな、普段着の" },
+      { en: "clothes",          jp: "服" },
+      { en: "large",            jp: "大きい、広い" },
+      { en: "collection",       jp: "収集" }
+    ];
+
+    // 動詞も②③用の単語リストに追加
+    verbs.forEach(v => vocab.push({ en: v.base, jp: v.jp }));
+
+    // 共通ユーティリティ
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function getRandomItem(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function buildOptions(allValues, correctValue, count = 4) {
+      const unique = Array.from(new Set(allValues));
+      const options = [correctValue];
+      while (options.length < count && options.length < unique.length) {
+        const cand = unique[Math.floor(Math.random() * unique.length)];
+        if (!options.includes(cand)) options.push(cand);
+      }
+      return shuffle(options);
+    }
+
+    // アプリ状態
+    let mode = 1;
+    let currentCorrect = "";
+    let scoreCorrect = 0;
+    let scoreTotal = 0;
+
+    const modeSelect = document.getElementById("modeSelect");
+    const questionEl = document.getElementById("question");
+    const subInfoEl = document.getElementById("subInfo");
+    const optionsEl = document.getElementById("options");
+    const feedbackEl = document.getElementById("feedback");
+    const scoreEl = document.getElementById("score");
+    const nextBtn = document.getElementById("nextBtn");
+
+    function updateScore() {
+      scoreEl.textContent = `正解数 ${scoreCorrect} / ${scoreTotal}`;
+    }
+
+    function setMode(newMode) {
+      mode = newMode;
+      scoreCorrect = 0;
+      scoreTotal = 0;
+      updateScore();
+      newQuestion();
+    }
+
+    function clearFeedback() {
+      feedbackEl.textContent = "";
+      feedbackEl.className = "";
+    }
+
+    function disableOptionButtons() {
+      document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+    }
+
+    function createQuestionMode1() {
+      const item = getRandomItem(verbs);
+      currentCorrect = item.ing;
+
+      questionEl.textContent = `「${item.base}」の現在進行形はどれ？`;
+      subInfoEl.textContent = `意味：${item.jp}`;
+      const allIng = verbs.map(v => v.ing);
+      const opts = buildOptions(allIng, currentCorrect, 4);
+      renderOptions(opts);
+    }
+
+    function createQuestionMode2() {
+      const item = getRandomItem(vocab);
+      currentCorrect = item.jp;
+
+      questionEl.textContent = `英語の意味を選ぼう： ${item.en}`;
+      subInfoEl.textContent = "";
+      const allJp = vocab.map(v => v.jp);
+      const opts = buildOptions(allJp, currentCorrect, 4);
+      renderOptions(opts);
+    }
+
+    function createQuestionMode3() {
+      const item = getRandomItem(vocab);
+      currentCorrect = item.en;
+
+      questionEl.textContent = `日本語を英語にしよう： ${item.jp}`;
+      subInfoEl.textContent = "";
+      const allEn = vocab.map(v => v.en);
+      const opts = buildOptions(allEn, currentCorrect, 4);
+      renderOptions(opts);
+    }
+
+    function renderOptions(options) {
+      optionsEl.innerHTML = "";
+      options.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.textContent = opt;
+        btn.className = "option-btn";
+        btn.addEventListener("click", () => checkAnswer(opt));
+        optionsEl.appendChild(btn);
+      });
+      clearFeedback();
+    }
+
+    function newQuestion() {
+      clearFeedback();
+      if (mode === "1" || mode === 1) {
+        createQuestionMode1();
+      } else if (mode === "2" || mode === 2) {
+        createQuestionMode2();
+      } else {
+        createQuestionMode3();
+      }
+    }
+
+    function checkAnswer(selected) {
+      disableOptionButtons();
+      scoreTotal++;
+      if (selected === currentCorrect) {
+        scoreCorrect++;
+        feedbackEl.textContent = "正解！";
+        feedbackEl.className = "correct";
+      } else {
+        feedbackEl.textContent = `残念！ 正解は「${currentCorrect}」です。`;
+        feedbackEl.className = "wrong";
+      }
+      updateScore();
+    }
+
+    modeSelect.addEventListener("change", (e) => {
+      setMode(Number(e.target.value));
+    });
+
+    nextBtn.addEventListener("click", () => {
+      newQuestion();
+    });
+
+    // 初期表示
+    setMode(1);
+  </script>
+</body>
+</html>
