@@ -76,7 +76,8 @@
     #feedback {
       text-align: center;
       font-size: 1rem;
-      min-height: 1.4em;
+      min-height: 2.2em;
+      margin-bottom: 10px;
     }
     #feedback.correct {
       color: #1a7f1a;
@@ -137,11 +138,11 @@
     // ① 動詞（現在形・進行形・日本語）
     const verbs = [
       { base: "like",     ing: "liking",     jp: "好む" },
-      { base: "want",     ing: "wanting",    jp: "必要とする" },
-      { base: "play",     ing: "playing",    jp: "～する" },
+      { base: "want",     ing: "wanting",    jp: "〜を欲する" },
+      { base: "play",     ing: "playing",    jp: "遊ぶ" },
       { base: "have",     ing: "having",     jp: "持つ" },
       { base: "spell",    ing: "spelling",   jp: "綴る" },
-      { base: "listen",   ing: "listening",  jp: "聴く" },
+      { base: "listen",   ing: "listening",  jp: "聞く" },
       { base: "walk",     ing: "walking",    jp: "歩く" },
       { base: "run",      ing: "running",    jp: "走る" },
       { base: "dance",    ing: "dancing",    jp: "ダンスする" },
@@ -151,7 +152,7 @@
       { base: "sing",     ing: "singing",    jp: "歌う" },
       { base: "fly",      ing: "flying",     jp: "飛ぶ" },
       { base: "cook",     ing: "cooking",    jp: "料理する" },
-      { base: "turn",     ing: "turning",    jp: "ターンする" },
+      { base: "turn",     ing: "turning",    jp: "曲がる" },
       { base: "go",       ing: "going",      jp: "行く" },
       { base: "see",      ing: "seeing",     jp: "見る" },
       { base: "look",     ing: "looking",    jp: "見る" },
@@ -166,7 +167,7 @@
       { base: "talk",     ing: "talking",    jp: "話す" },
       { base: "watch",    ing: "watching",   jp: "観る" },
       { base: "read",     ing: "reading",    jp: "読む" },
-      { base: "help",     ing: "helping",    jp: "助ける" },
+      { base: "help",     ing: "helping",    jp: "手伝う" },
       { base: "practice", ing: "practicing", jp: "練習する" },
       { base: "clean",    ing: "cleaning",   jp: "きれいにする" },
       { base: "enjoy",    ing: "enjoying",   jp: "楽しむ" },
@@ -212,7 +213,7 @@
 
       // No.21 Unit 6 Part2
       { en: "Be careful.",      jp: "気をつけて。" },
-      { en: "crowded",          jp: "混んでいる" },
+      { en: "crowded",          jp: "込んでいる" },
       { en: "long",             jp: "長い" },
       { en: "history",          jp: "歴史" },
       { en: "still",            jp: "今でも" },
@@ -265,8 +266,11 @@
     // アプリ状態
     let mode = 1;
     let currentCorrect = "";
+    let currentItem = null; // 解説用
     let scoreCorrect = 0;
     let scoreTotal = 0;
+    let streak = 0; // 連続正解数
+    let pendingModeChange = null; // 次の問題でモードを変える
 
     const modeSelect = document.getElementById("modeSelect");
     const questionEl = document.getElementById("question");
@@ -282,6 +286,7 @@
 
     function setMode(newMode) {
       mode = newMode;
+      streak = 0;
       scoreCorrect = 0;
       scoreTotal = 0;
       updateScore();
@@ -299,6 +304,7 @@
 
     function createQuestionMode1() {
       const item = getRandomItem(verbs);
+      currentItem = item;
       currentCorrect = item.ing;
 
       questionEl.textContent = `「${item.base}」の現在進行形はどれ？`;
@@ -310,6 +316,7 @@
 
     function createQuestionMode2() {
       const item = getRandomItem(vocab);
+      currentItem = item;
       currentCorrect = item.jp;
 
       questionEl.textContent = `英語の意味を選ぼう： ${item.en}`;
@@ -321,6 +328,7 @@
 
     function createQuestionMode3() {
       const item = getRandomItem(vocab);
+      currentItem = item;
       currentCorrect = item.en;
 
       questionEl.textContent = `日本語を英語にしよう： ${item.jp}`;
@@ -344,30 +352,106 @@
 
     function newQuestion() {
       clearFeedback();
-      if (mode === "1" || mode === 1) {
+
+      // 連続正解10問でモード変更が予約されている場合
+      if (pendingModeChange !== null) {
+        const nextMode = pendingModeChange;
+        pendingModeChange = null;
+        modeSelect.value = String(nextMode);
+        setMode(nextMode);
+        return;
+      }
+
+      if (mode === 1) {
         createQuestionMode1();
-      } else if (mode === "2" || mode === 2) {
+      } else if (mode === 2) {
         createQuestionMode2();
       } else {
         createQuestionMode3();
       }
     }
 
+    function getExplanation(correct) {
+      // 一言解説を返す
+      if (mode === 1 && currentItem) {
+        const base = currentItem.base;
+        const ing = currentItem.ing;
+        let ruleText = "";
+
+        const doubleList = ["running", "swimming", "getting", "stopping"];
+
+        if (doubleList.includes(ing)) {
+          ruleText = "最後の子音を重ねて、ingをつけます！";
+        } else if (base.endsWith("e") && !base.endsWith("ee")) {
+          ruleText = "eが消えて、ingをつけます！";
+        } else {
+          ruleText = "そのままingをつけます！";
+        }
+
+        if (correct) {
+          return ruleText;
+        } else {
+          return `「${base}」は ${ruleText} → 「${ing}」になります。`;
+        }
+      }
+
+      if (mode === 2 && currentItem) {
+        // 英語 → 日本語
+        return `「${currentItem.en}」は「${currentItem.jp}」という意味です。`;
+      }
+
+      if (mode === 3 && currentItem) {
+        // 日本語 → 英語
+        return `「${currentItem.jp}」は英語で「${currentItem.en}」と言います。`;
+      }
+
+      return "";
+    }
+
     function checkAnswer(selected) {
       disableOptionButtons();
       scoreTotal++;
+
+      let msg = "";
+      let explanation = "";
+
       if (selected === currentCorrect) {
         scoreCorrect++;
-        feedbackEl.textContent = "正解！";
+        streak++;
+        msg = "正解！";
+        explanation = getExplanation(true);
         feedbackEl.className = "correct";
       } else {
-        feedbackEl.textContent = `残念！ 正解は「${currentCorrect}」です。`;
+        streak = 0;
+        msg = `残念！ 正解は「${currentCorrect}」です。`;
+        explanation = getExplanation(false);
         feedbackEl.className = "wrong";
       }
+
+      let extra = "";
+
+      // 10問連続正解のときのメッセージと次モード予約
+      if (streak === 10) {
+        if (mode === 1) {
+          extra = "10問連続正解！次は②英語が出て、日本語を選ぶ にチャレンジしよう！";
+          pendingModeChange = 2;
+        } else if (mode === 2) {
+          extra = "10問連続正解！次は③日本語が出て、英語を出る にチャレンジしよう！";
+          pendingModeChange = 3;
+        } else if (mode === 3) {
+          extra = "10問連続正解！次は①現在形が出て、進行形を選ぶ にチャレンジしよう！";
+          pendingModeChange = 1;
+        }
+      }
+
+      const texts = [msg, explanation, extra].filter(t => t && t.length > 0);
+      feedbackEl.innerHTML = texts.join("<br>");
+
       updateScore();
     }
 
     modeSelect.addEventListener("change", (e) => {
+      pendingModeChange = null;
       setMode(Number(e.target.value));
     });
 
@@ -380,3 +464,5 @@
   </script>
 </body>
 </html>
+
+
